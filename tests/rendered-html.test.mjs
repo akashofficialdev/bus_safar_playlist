@@ -29,13 +29,15 @@ test("server-renders the Dehradun to Mussoorie journey", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>Window Seat Radio<\/title>/i);
-  assert.match(html, /Dehradun to Mussoorie/);
-  assert.match(html, /Window Seat Radio/);
-  assert.match(html, /Now playing/);
-  assert.match(html, /Subah Ki Bus/);
+  assert.match(html, /<title>बस सफर<\/title>/i);
+  assert.match(html, /Dehradun/);
+  assert.match(html, /Mussoorie/);
+  assert.match(html, /देहरादून से मसूरी/);
+  assert.match(html, /Pahadi Safar/);
+  assert.match(html, /Baarish wali seat/);
+  assert.match(html, /Khidki wali playlist/);
   assert.match(html, /Journey progress/);
-  assert.match(html, /Halfway Chai/);
+  assert.match(html, /Space/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/);
 });
 
@@ -48,7 +50,7 @@ test("removes the starter preview implementation", async () => {
   ]);
 
   assert.doesNotMatch(page, /SkeletonPreview|_sites-preview|codex-preview/);
-  assert.match(layout, /Window Seat Radio/);
+  assert.match(layout, /बस सफर/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   assert.ok(!appFiles.includes("_sites-preview"));
 });
