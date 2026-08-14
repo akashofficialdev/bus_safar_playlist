@@ -79,6 +79,10 @@ const callYouTubePlayer = <Method extends keyof YouTubePlayer>(
   method: Method,
   ...args: Parameters<YouTubePlayer[Method]>
 ) => {
+  if (!player) {
+    return undefined;
+  }
+
   const playerMethod = player?.[method];
 
   if (typeof playerMethod !== "function") {
@@ -448,7 +452,6 @@ export default function RadioSite() {
   const youtubeQuery = `${track.title} ${track.artist} official song`;
   const youtubeSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(youtubeQuery)}`;
   const displayedDuration = duration || track.duration;
-  fallbackDurationRef.current = track.duration;
 
   const togglePlayback = async () => {
     if (isPlaying) {
@@ -494,8 +497,6 @@ export default function RadioSite() {
     selectTrack(playlistIndex, (trackIndex + 1) % playlist.tracks.length);
   };
 
-  nextTrackRef.current = nextTrack;
-
   const previousTrack = () => {
     selectTrack(playlistIndex, (trackIndex - 1 + playlist.tracks.length) % playlist.tracks.length);
   };
@@ -508,6 +509,14 @@ export default function RadioSite() {
     setCurrentTime(time);
     callYouTubePlayer(playerRef.current, "seekTo", time, true);
   };
+
+  useEffect(() => {
+    fallbackDurationRef.current = track.duration;
+  }, [track.duration]);
+
+  useEffect(() => {
+    nextTrackRef.current = nextTrack;
+  });
 
   useEffect(() => {
     const browserWindow = window as YouTubeWindow;
@@ -625,11 +634,11 @@ export default function RadioSite() {
       const nextCurrentTime = callYouTubePlayer(player, "getCurrentTime");
       const nextDuration = callYouTubePlayer(player, "getDuration");
 
-      if (Number.isFinite(nextCurrentTime)) {
+      if (typeof nextCurrentTime === "number" && Number.isFinite(nextCurrentTime)) {
         setCurrentTime(nextCurrentTime);
       }
 
-      if (Number.isFinite(nextDuration) && nextDuration > 0) {
+      if (typeof nextDuration === "number" && Number.isFinite(nextDuration) && nextDuration > 0) {
         setDuration(nextDuration);
       }
     }, 500);

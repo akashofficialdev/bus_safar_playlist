@@ -1,8 +1,6 @@
-# vinext-starter
+# bussafar
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+A Next.js playlist site for a nostalgic Pahadi bus ride.
 
 ## Prerequisites
 
@@ -16,18 +14,32 @@ npm run dev
 npm run build
 ```
 
-This starter does not use `wrangler.jsonc`.
+## Deploy To Vercel
+
+Use `bussafar` as the Vercel project name.
+
+1. Push this folder to a GitHub repository.
+2. Open [Vercel](https://vercel.com/new) and import that repository.
+3. Set the project name to `bussafar`.
+4. Keep the framework preset as `Next.js`.
+5. Use these build settings:
+   - Build Command: `npm run build`
+   - Install Command: `npm install`
+   - Output Directory: leave empty
+6. Add no environment variables; this site does not need any for the current build.
+7. Click **Deploy**.
+
+After deployment, Vercel will create a URL like `https://bussafar.vercel.app` if
+the subdomain is available. If it is already taken, Vercel will ask for a
+different production domain while keeping the project name as `bussafar`.
 
 ## Included Shape
 
 - edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
+- static media assets live under `public/`
+- `npm run build` verifies the Vercel production build
 
-## Workspace Auth Headers
+## Legacy Workspace Auth Headers
 
 Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
 
