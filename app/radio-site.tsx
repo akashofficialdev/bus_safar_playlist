@@ -442,7 +442,8 @@ export default function RadioSite() {
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [isLibraryOpen, setIsLibraryOpen] = useState(true);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
   const [playerNotice, setPlayerNotice] = useState("");
 
   const playlist = playlists[playlistIndex];
@@ -703,7 +704,10 @@ export default function RadioSite() {
   );
 
   return (
-    <main className={`radio-shell theme-${theme.id}`} style={pageStyle}>
+    <main
+      className={`radio-shell theme-${theme.id}${isPlayerExpanded ? " player-expanded" : ""}`}
+      style={pageStyle}
+    >
       {theme.videoWide ? (
         <video
           key={`${theme.id}-wide`}
@@ -776,7 +780,21 @@ export default function RadioSite() {
             ))}
           </select>
         </label>
-        <button type="button" className="library-toggle" onClick={() => setIsLibraryOpen((open) => !open)}>
+        <button
+          type="button"
+          className="library-toggle"
+          onClick={() => {
+            setIsLibraryOpen((open) => {
+              const nextOpen = !open;
+
+              if (nextOpen) {
+                setIsPlayerExpanded(false);
+              }
+
+              return nextOpen;
+            });
+          }}
+        >
           {isLibraryOpen ? "Close queue" : "Queue"}
         </button>
         <span className="listeners">{listenerCount} aboard</span>
@@ -853,8 +871,27 @@ export default function RadioSite() {
 
       <div className="youtube-frame" ref={youtubeContainerRef} />
 
-      <section className="player-card" aria-label="Music controls">
+      <section className={isPlayerExpanded ? "player-card expanded" : "player-card"} aria-label="Music controls">
         <MiniBus isPlaying={isPlaying} />
+        <button
+          type="button"
+          className="player-expand"
+          onClick={() => {
+            setIsPlayerExpanded((expanded) => {
+              const nextExpanded = !expanded;
+
+              if (nextExpanded) {
+                setIsLibraryOpen(false);
+              }
+
+              return nextExpanded;
+            });
+          }}
+          aria-label={isPlayerExpanded ? "Collapse player" : "Expand player"}
+          aria-expanded={isPlayerExpanded}
+        >
+          {isPlayerExpanded ? "×" : "↗"}
+        </button>
         <div className="track-copy">
           <p>{track.title}</p>
           <span>
