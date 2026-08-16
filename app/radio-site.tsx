@@ -131,6 +131,8 @@ const themes: Theme[] = [
   },
 ];
 
+const instagramUrl = "https://www.instagram.com/akashinthesky_/";
+
 const makeTrack = (
   playlistId: string,
   index: number,
@@ -444,6 +446,7 @@ export default function RadioSite() {
   const [duration, setDuration] = useState(0);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
+  const [isDriverOpen, setIsDriverOpen] = useState(false);
   const [playerNotice, setPlayerNotice] = useState("");
 
   const playlist = playlists[playlistIndex];
@@ -685,6 +688,10 @@ export default function RadioSite() {
       if (event.key.toLowerCase() === "t") {
         nextTheme();
       }
+
+      if (event.key === "Escape") {
+        setIsDriverOpen(false);
+      }
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -798,7 +805,45 @@ export default function RadioSite() {
           {isLibraryOpen ? "Close queue" : "Queue"}
         </button>
         <span className="listeners">{listenerCount} aboard</span>
+        <button
+          type="button"
+          className="driver-toggle"
+          onClick={() => setIsDriverOpen((open) => !open)}
+          aria-expanded={isDriverOpen}
+          aria-controls="driver-card"
+        >
+          <span className="driver-avatar" aria-hidden="true">🚌</span>
+          <strong>Who&apos;s driving?</strong>
+        </button>
       </div>
+
+      <aside
+        id="driver-card"
+        className={isDriverOpen ? "driver-card open" : "driver-card"}
+        aria-label="Driver profile"
+        aria-hidden={!isDriverOpen}
+      >
+        <button
+          type="button"
+          className="driver-close"
+          onClick={() => setIsDriverOpen(false)}
+          aria-label="Close driver profile"
+        >
+          ×
+        </button>
+        <div className="driver-card-head">
+          <span className="driver-avatar large" aria-hidden="true">🚌</span>
+          <div>
+            <strong>Akash</strong>
+            <p>I drive this bus. I pick every song on it.</p>
+          </div>
+        </div>
+        <a className="instagram-follow" href={instagramUrl} target="_blank" rel="noreferrer">
+          <span aria-hidden="true">◎</span>
+          Follow akashinthesky_
+        </a>
+        <p className="driver-note">New songs join the bus most weeks.</p>
+      </aside>
 
       <section className="route-title" aria-label="Route">
         <span>{playlist.tracks.length} tracks · non-stop</span>
