@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 type Track = {
   id: string;
@@ -17,6 +18,8 @@ type Playlist = {
   shortName: string;
   accent: string;
   description: string;
+  youtubePlaylistId?: string;
+  youtubePlaylistUrl?: string;
   tracks: Track[];
 };
 
@@ -36,6 +39,8 @@ type YouTubePlayerState = {
 type YouTubePlayer = {
   loadVideoById: (videoId: string) => void;
   cueVideoById: (videoId: string) => void;
+  loadPlaylist: (playlist: YouTubePlaylistRequest) => void;
+  cuePlaylist: (playlist: YouTubePlaylistRequest) => void;
   playVideo: () => void;
   pauseVideo: () => void;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
@@ -54,9 +59,17 @@ type YouTubePlayerConstructor = new (
       onReady?: () => void;
       onStateChange?: (event: YouTubePlayerState) => void;
       onError?: () => void;
+      onAutoplayBlocked?: () => void;
     };
   },
 ) => YouTubePlayer;
+
+type YouTubePlaylistRequest = {
+  listType: "playlist";
+  list: string;
+  index?: number;
+  startSeconds?: number;
+};
 
 type YouTubeWindow = Window &
   typeof globalThis & {
@@ -128,6 +141,18 @@ const themes: Theme[] = [
 ];
 
 const instagramUrl = "https://www.instagram.com/akashinthesky_/";
+const pahadiSafarPlaylistId = "PL4evSRTkAueHrypEakuqCDboJWCBAosMO";
+const pahadiSafarPlaylistUrl = `https://music.youtube.com/playlist?list=${pahadiSafarPlaylistId}`;
+const routeTitleText = "देहरादून से मसूरी";
+const routeTitleLetters = Array.from(
+  new Intl.Segmenter("hi", { granularity: "grapheme" }).segment(routeTitleText),
+  ({ segment }) => segment,
+);
+const hornUrls = [
+  "/audio/horn-real-truck.mp3",
+  "/audio/horn-real-truck.mp3",
+  "/audio/horn-real-truck.mp3",
+];
 
 const makeTrack = (
   playlistId: string,
@@ -145,6 +170,19 @@ const makeTrack = (
   videoId,
 });
 
+const getYouTubeThumbnailUrl = (track: Track) => (track.videoId ? `https://i.ytimg.com/vi/${track.videoId}/hqdefault.jpg` : "");
+
+function YouTubeThumbnail({ className, index, track }: { className: string; index?: number; track: Track }) {
+  const thumbnailUrl = getYouTubeThumbnailUrl(track);
+
+  return (
+    <span className={className}>
+      {thumbnailUrl ? <img src={thumbnailUrl} alt="" loading="lazy" draggable={false} /> : null}
+      {typeof index === "number" ? <i>{String(index + 1).padStart(2, "0")}</i> : null}
+    </span>
+  );
+}
+
 const playlists: Playlist[] = [
   {
     id: "pahadi-safar",
@@ -152,27 +190,35 @@ const playlists: Playlist[] = [
     shortName: "Pahadi Safar",
     accent: "#f8b85f",
     description: "Garhwali and Kumaoni road-trip energy for the climb.",
+    youtubePlaylistId: pahadiSafarPlaylistId,
+    youtubePlaylistUrl: pahadiSafarPlaylistUrl,
     tracks: [
-      ["Mero Lehenga 2", "Inder Arya, Jyoti Arya", "Kumaoni pop", "qG8_SEtqbJs"],
-      ["Cream Paudara Mashakbeen", "Rakesh Khanwal, Maya Upadhyay", "wedding road", "-r-PMDXH3as"],
-      ["Mandaan", "Ruhan Bhardwaj, Karishma Shah", "folk pop", "0RjvMBr3tdk"],
+      ["Hey Madhu", "Inder Arya", "Kumaoni pop", "1ipJZHXol-U"],
+      ["Gulabi Sharara", "Inder Arya, Rakesh Joshi", "Kumaoni hit", "4cw3x0tU-pk"],
+      ["Dhana", "Pahadi Safar", "folk pop", "OqDqIt2Qq9k"],
+      ["Ghumai De", "Pahadi Safar", "road dance", "5gCKYGSHkvI"],
       ["Thal Ki Bazar", "B.K. Samant", "market energy", "ijN3PK7j6PQ"],
-      ["Modern Kumaon", "Inder Arya", "new Kumaon", "EzFih09wwX8"],
-      ["Dhan Singh Ki Gaadi", "Rohit Chauhan", "driver mood", "NELLERJh7dY"],
-      ["Fyonladiya Twe Dekhik", "Kishan Mahipal", "Garhwali favourite", "GsqdP7lzdWM"],
-      ["Bol Heera", "Inder Arya, Neeraj Dabral", "singalong", "V9u9ogqrpEs"],
-      ["Hath Pereli Ghadi La", "Jitendra Tomkyal", "Kumaoni", "QZyisrYgztU"],
-      ["Almora Ki Ganga", "Fauji Lalit Mohan Joshi", "long ride", "NUjwYnQx9KU"],
-      ["Chhakk Chhina", "Prahlad Mehra, Mamta Arya", "folk dance", "0qqnYDiMSZs"],
-      ["Chaha Ghutuk", "Govind Digari, Khushi Joshi", "chai stop", "kpPc03KCvXo"],
-      ["Me Jachhu Kamala", "Chandra Prakash", "old melody", "9UqUoXo1Dtg"],
-      ["Teri Rangyali Pichodi Kamu", "Pappu Karki", "classic Kumaoni", "PXD_gXBWxRA"],
-      ["Hey Deepa Mijaaj", "Lalit Mohan Joshi", "crowd favourite", "ZL_C8oMbQQ0"],
-      ["Dhai Hathe Dhameli", "Manoj Arya, Priyanka Meher", "celebration", "MVYkoXd_KZA"],
-      ["Barandi Botala", "Sandeep Sonu", "roadside beat", "kLA6gcd0_8Q"],
-      ["NAAKE KI NATHULI ME MADHULI", "Gaurav Bisht", "mela energy", "nG9w5yyyy5Y"],
-      ["Hit De Sali Myar Dagada", "Rakesh Joshi, Khushi Joshi", "fun", "5bMlEKaEmJs"],
-      ["Mai Pahadan", "Mamta Arya, Bhawana Kandpal", "pahadi pride", "dPExLKarsyo"],
+      ["Chaitwali", "Pahadi Safar", "Garhwali favourite", "uoRotsLAHWk"],
+      ["Cream Paudara", "Pahadi Safar", "wedding road", "rq4i7v7UUww"],
+      ["Fyonladiya Twe Dekhik", "Pahadi Safar", "Garhwali favourite", "9sVApD1gYBM"],
+      ["Roop Ku Mantar", "Priyanka Meher, Vivek Nautiyal", "visualizer", "Q2qgdDjxCcA"],
+      ["Meri Bamani", "Pahadi Safar", "singalong", "EOdR5RWR7N0"],
+      ["Tak Taka Tak Kamla", "Pahadi Safar", "Pahari pop", "DR6nZHZnBR0"],
+      ["RAMM JHAMA", "Vivek Nautiyal", "dance", "c_JA4lxZ9U8"],
+      ["Jeetu Bagdwal", "Shraddha Kuhupriya", "folk story", "Y4BPI5oRbL4"],
+      ["Nanda Tero Dola Live", "Pahadi Safar", "live folk", "XouvXw1QeQA"],
+      ["Mathu Mathu", "Pahadi Safar", "Uttarakhandi", "P8rtpO93Iu0"],
+      ["Yo Mero Pahad", "B.K. Samant", "mountain pride", "lcF2wFFIiBY"],
+      ["BASANTI CHHYODI", "Pahadi Safar", "folk dance", "Axt8ZnbXiaI"],
+      ["Fwa Baga Re", "Pahadi Safar", "Pahari", "HmVx5EeYHHg"],
+      ["Gopuli", "Kumauni Folk Song", "folk classic", "L9eSWavZFWE"],
+      ["Bedu Pako", "Uttarakhandi Folk Song", "folk classic", "9qt5qOQx0eE"],
+      ["Thando Re Thando", "Pahadi Safar", "cool breeze", "J20uF1L6B9w"],
+      ["Surma Sarela", "Pahadi Safar", "roadside beat", "dbP2M5dhylA"],
+      ["Nuchami Narina", "Pahadi Safar", "folk groove", "h0pLTDtj-GM"],
+      ["Dharti Hamara Garhwala Ki", "Narendra Singh Negi", "Garhwali song", "TzcHbGNO_Vs"],
+      ["Laska Dhasko Ma Chali", "Pahadi Safar", "dance", "wMx1r8v-VQk"],
+      ["Ramdai Ka Hotel", "Pahadi Safar", "chai stop", "5VQVws46VOo"],
     ].map((track, index) => makeTrack("pahadi-safar", index, track[0], track[1], track[2], track[3])),
   },
   {
@@ -416,12 +462,11 @@ function SeekBar({
   );
 }
 
-function MiniBus({ isPlaying }: { isPlaying: boolean }) {
+function TrackCover({ isPlaying, track }: { isPlaying: boolean; track: Track }) {
   return (
-    <div className={isPlaying ? "mini-bus moving" : "mini-bus"} aria-hidden="true">
-      <span className="bus-body" />
-      <span className="wheel one" />
-      <span className="wheel two" />
+    <div className={isPlaying ? "mini-bus cover-disc moving" : "mini-bus cover-disc"} aria-hidden="true">
+      <YouTubeThumbnail className="cover-art" track={track} />
+      <span className="cover-hole" />
     </div>
   );
 }
@@ -433,6 +478,11 @@ export default function RadioSite() {
   const endedRef = useRef(false);
   const nextTrackRef = useRef<() => void>(() => {});
   const fallbackDurationRef = useRef(0);
+  const hornAudioRef = useRef<HTMLAudioElement[]>([]);
+  const lastHornAtRef = useRef(0);
+  const hornPresetIndexRef = useRef(-1);
+  const isHornUnlockedRef = useRef(false);
+  const hornButtonTimerRef = useRef<number | null>(null);
   const [themeIndex, setThemeIndex] = useState(0);
   const [playlistIndex, setPlaylistIndex] = useState(0);
   const [trackIndex, setTrackIndex] = useState(0);
@@ -443,6 +493,12 @@ export default function RadioSite() {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
   const [isDriverOpen, setIsDriverOpen] = useState(false);
+  const [isSocialBrowser, setIsSocialBrowser] = useState(false);
+  const [isDirectPlayerOpen, setIsDirectPlayerOpen] = useState(false);
+  const [isRouteActive, setIsRouteActive] = useState(false);
+  const [isHornButtonActive, setIsHornButtonActive] = useState(false);
+  const [activeRouteLetter, setActiveRouteLetter] = useState<number | null>(null);
+  const [routeWaveId, setRouteWaveId] = useState(0);
   const [playerNotice, setPlayerNotice] = useState("");
 
   const playlist = playlists[playlistIndex];
@@ -451,7 +507,49 @@ export default function RadioSite() {
   const journeyPercent = Math.min(100, ((trackIndex + 1) / playlist.tracks.length) * 100);
   const youtubeQuery = `${track.title} ${track.artist} official song`;
   const youtubeSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(youtubeQuery)}`;
+  const youtubeOpenUrl = playlist.youtubePlaylistUrl ?? (track.videoId ? `https://www.youtube.com/watch?v=${track.videoId}` : youtubeSearchUrl);
+  const youtubePlaylistRequest = useMemo(
+    () =>
+      playlist.youtubePlaylistId
+        ? ({
+            listType: "playlist",
+            list: playlist.youtubePlaylistId,
+            index: trackIndex,
+          } satisfies YouTubePlaylistRequest)
+        : null,
+    [playlist.youtubePlaylistId, trackIndex],
+  );
   const displayedDuration = duration || track.duration;
+
+  const renderRouteLetters = () =>
+    routeTitleLetters.map((letter, index) => {
+      const isSpace = letter === " ";
+      const waveDistance = activeRouteLetter === null ? 0 : Math.abs(index - activeRouteLetter);
+
+      return (
+        <span
+          className={`route-letter${isSpace ? " space" : ""}${activeRouteLetter === index ? " active" : ""}`}
+          key={`${letter}-${index}-${routeWaveId}`}
+          onPointerEnter={
+            isSpace
+              ? undefined
+              : () => {
+                  setIsRouteActive(true);
+                  setActiveRouteLetter(index);
+                  setRouteWaveId((id) => id + 1);
+                }
+          }
+          style={
+            {
+              "--route-letter-index": index,
+              "--route-wave-distance": waveDistance,
+            } as React.CSSProperties
+          }
+        >
+          {letter}
+        </span>
+      );
+    });
 
   const togglePlayback = async () => {
     if (isPlaying) {
@@ -460,14 +558,24 @@ export default function RadioSite() {
       return;
     }
 
-    if (!track.videoId) {
-      setPlayerNotice("Opening YouTube search for the real track");
-      window.open(youtubeSearchUrl, "_blank", "noopener,noreferrer");
+    if (!track.videoId && !youtubePlaylistRequest) {
+      setPlayerNotice("Opening YouTube for the real track");
+      window.open(youtubeOpenUrl, "_blank", "noopener,noreferrer");
       return;
     }
 
     setPlayerNotice("");
     requestedAutoplayRef.current = true;
+
+    if (isSocialBrowser) {
+      flushSync(() => setIsDirectPlayerOpen(true));
+    }
+
+    if (!isPlayerReady) {
+      setPlayerNotice(isSocialBrowser ? "Tap play in the YouTube player" : "Loading the player...");
+      return;
+    }
+
     callYouTubePlayer(playerRef.current, "playVideo");
     setIsPlaying(true);
   };
@@ -475,11 +583,13 @@ export default function RadioSite() {
   const selectTrack = (nextPlaylistIndex: number, nextTrackIndex: number) => {
     const nextTrackItem = playlists[nextPlaylistIndex].tracks[nextTrackIndex];
 
+    requestedAutoplayRef.current = true;
     setPlaylistIndex(nextPlaylistIndex);
     setTrackIndex(nextTrackIndex);
     setCurrentTime(0);
     setDuration(0);
     setPlayerNotice("");
+    setIsLibraryOpen(false);
     endedRef.current = false;
 
     if (!nextTrackItem.videoId) {
@@ -488,9 +598,26 @@ export default function RadioSite() {
       return;
     }
 
-    if (isPlaying) {
-      requestedAutoplayRef.current = true;
+    if (!isPlayerReady) {
+      setPlayerNotice(isSocialBrowser ? "Tap play in the YouTube player" : "Loading the player...");
+      return;
     }
+
+    if (nextPlaylistIndex === playlistIndex && nextTrackIndex === trackIndex) {
+      callYouTubePlayer(playerRef.current, "playVideo");
+    }
+
+    setIsPlaying(true);
+  };
+
+  const selectPlaylistCategory = (nextPlaylistIndex: number) => {
+    setPlaylistIndex(nextPlaylistIndex);
+    setTrackIndex(0);
+    setCurrentTime(0);
+    setDuration(0);
+    setPlayerNotice("");
+    endedRef.current = false;
+    requestedAutoplayRef.current = false;
   };
 
   const nextTrack = () => {
@@ -510,9 +637,111 @@ export default function RadioSite() {
     callYouTubePlayer(playerRef.current, "seekTo", time, true);
   };
 
+  const playPahadiHorn = () => {
+    const nowMs = window.performance.now();
+
+    if (nowMs - lastHornAtRef.current < 1100) {
+      return;
+    }
+
+    lastHornAtRef.current = nowMs;
+
+    try {
+      if (!hornAudioRef.current.length) {
+        hornAudioRef.current = hornUrls.map((url) => {
+          const audio = new Audio(url);
+          audio.preload = "auto";
+          audio.volume = 0.9;
+          return audio;
+        });
+      }
+
+      hornPresetIndexRef.current = (hornPresetIndexRef.current + 1) % hornAudioRef.current.length;
+
+      const horn = hornAudioRef.current[hornPresetIndexRef.current];
+      horn.pause();
+      horn.muted = false;
+      horn.currentTime = 0;
+      horn
+        .play()
+        .then(() => {
+          isHornUnlockedRef.current = true;
+        })
+        .catch(() => {
+          isHornUnlockedRef.current = false;
+        });
+    } catch {
+      // Ignore browsers that block hover audio before the first user gesture.
+    }
+  };
+
+  const unlockHorns = () => {
+    if (isHornUnlockedRef.current) {
+      return;
+    }
+
+    try {
+      if (!hornAudioRef.current.length) {
+        hornAudioRef.current = hornUrls.map((url) => {
+          const audio = new Audio(url);
+          audio.preload = "auto";
+          audio.volume = 0.9;
+          return audio;
+        });
+      }
+
+      const horn = hornAudioRef.current[0];
+      horn.muted = true;
+      horn.currentTime = 0;
+      horn
+        .play()
+        .then(() => {
+          horn.pause();
+          horn.currentTime = 0;
+          horn.muted = false;
+          isHornUnlockedRef.current = true;
+        })
+        .catch(() => {
+          horn.muted = false;
+        });
+    } catch {
+      // Audio unlock is best-effort; hover will retry after the next gesture.
+    }
+  };
+
+  const triggerHornOkButton = () => {
+    if (hornButtonTimerRef.current) {
+      window.clearTimeout(hornButtonTimerRef.current);
+    }
+
+    setIsHornButtonActive(false);
+    window.requestAnimationFrame(() => {
+      setIsHornButtonActive(true);
+      hornButtonTimerRef.current = window.setTimeout(() => {
+        setIsHornButtonActive(false);
+        hornButtonTimerRef.current = null;
+      }, 680);
+    });
+
+    playPahadiHorn();
+  };
+
   useEffect(() => {
     fallbackDurationRef.current = track.duration;
   }, [track.duration]);
+
+  useEffect(
+    () => () => {
+      if (hornButtonTimerRef.current) {
+        window.clearTimeout(hornButtonTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    setIsSocialBrowser(/Instagram|FBAN|FBAV/i.test(window.navigator.userAgent));
+  }, []);
 
   useEffect(() => {
     nextTrackRef.current = nextTrack;
@@ -520,6 +749,7 @@ export default function RadioSite() {
 
   useEffect(() => {
     const browserWindow = window as YouTubeWindow;
+    const isSocialWebView = /Instagram|FBAN|FBAV/i.test(window.navigator.userAgent);
     const existingReadyCallback = browserWindow.onYouTubeIframeAPIReady;
 
     const createPlayer = () => {
@@ -542,11 +772,21 @@ export default function RadioSite() {
           modestbranding: 1,
           playsinline: 1,
           rel: 0,
+          ...(playlist.youtubePlaylistId
+            ? {
+                listType: "playlist",
+                list: playlist.youtubePlaylistId,
+              }
+            : {}),
         },
           events: {
             onReady: () => {
               setIsPlayerReady(true);
               setDuration(callYouTubePlayer(playerRef.current, "getDuration") || fallbackDurationRef.current);
+
+              if (requestedAutoplayRef.current) {
+                callYouTubePlayer(playerRef.current, "playVideo");
+              }
             },
           onStateChange: (event) => {
             const state = browserWindow.YT?.PlayerState;
@@ -573,7 +813,13 @@ export default function RadioSite() {
           },
           onError: () => {
             setIsPlaying(false);
-            setPlayerNotice("This YouTube video cannot be played here");
+            setIsDirectPlayerOpen(isSocialWebView);
+            setPlayerNotice("This video cannot play inside this browser");
+          },
+          onAutoplayBlocked: () => {
+            setIsPlaying(false);
+            setIsDirectPlayerOpen(true);
+            setPlayerNotice("Tap play in the YouTube player");
           },
         },
       });
@@ -606,18 +852,32 @@ export default function RadioSite() {
   }, []);
 
   useEffect(() => {
-    if (!isPlayerReady || !track.videoId) {
+    if (!isPlayerReady || (!track.videoId && !youtubePlaylistRequest)) {
       return;
     }
 
     endedRef.current = false;
 
-    if (requestedAutoplayRef.current || isPlaying) {
+    if (youtubePlaylistRequest) {
+      if (requestedAutoplayRef.current) {
+        callYouTubePlayer(playerRef.current, "loadPlaylist", youtubePlaylistRequest);
+      } else {
+        callYouTubePlayer(playerRef.current, "cuePlaylist", youtubePlaylistRequest);
+      }
+
+      return;
+    }
+
+    if (!track.videoId) {
+      return;
+    }
+
+    if (requestedAutoplayRef.current) {
       callYouTubePlayer(playerRef.current, "loadVideoById", track.videoId);
     } else {
       callYouTubePlayer(playerRef.current, "cueVideoById", track.videoId);
     }
-  }, [isPlayerReady, track.videoId]);
+  }, [isPlayerReady, track.videoId, youtubePlaylistRequest]);
 
   useEffect(() => {
     if (!isPlayerReady) {
@@ -685,6 +945,10 @@ export default function RadioSite() {
         nextTheme();
       }
 
+      if (event.key.toLowerCase() === "h") {
+        triggerHornOkButton();
+      }
+
       if (event.key === "Escape") {
         setIsDriverOpen(false);
       }
@@ -703,8 +967,9 @@ export default function RadioSite() {
 
   return (
     <main
-      className={`radio-shell theme-${theme.id}${isPlayerExpanded ? " player-expanded" : ""}`}
+      className={`radio-shell theme-${theme.id}${isPlayerExpanded ? " player-expanded" : ""}${isLibraryOpen ? " queue-open" : ""}`}
       style={pageStyle}
+      onPointerDown={unlockHorns}
     >
       {theme.videoWide ? (
         <video
@@ -835,13 +1100,47 @@ export default function RadioSite() {
         <p className="driver-note">New songs join the bus most weeks.</p>
       </aside>
 
-      <section className="route-title" aria-label="Route">
+      <section
+        className={isRouteActive ? "route-title route-active" : "route-title"}
+        aria-label="Route"
+        tabIndex={0}
+        onPointerEnter={() => {
+          setIsRouteActive(true);
+        }}
+        onPointerLeave={() => {
+          setIsRouteActive(false);
+          setActiveRouteLetter(null);
+        }}
+        onFocus={() => {
+          setIsRouteActive(true);
+          setActiveRouteLetter(Math.floor(routeTitleLetters.length / 2));
+        }}
+        onBlur={() => {
+          setIsRouteActive(false);
+          setActiveRouteLetter(null);
+        }}
+      >
         <span>{playlist.tracks.length} tracks · non-stop</span>
         <p>
-          <span className="route-title-depth" aria-hidden="true">देहरादून से मसूरी</span>
-          <span className="route-title-main">देहरादून से मसूरी</span>
+          <span className="route-title-main" aria-label={routeTitleText}>{renderRouteLetters()}</span>
         </p>
-        <em>{playlist.shortName}</em>
+        <button
+          type="button"
+          className={isHornButtonActive ? "horn-ok-button honking" : "horn-ok-button"}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={triggerHornOkButton}
+          aria-label="Play horn"
+        >
+          <span className="horn-ok-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M4.5 10.5H8l5.2-4.2v11.4L8 13.5H4.5z" />
+              <path d="M16.2 8.1c1.1 1.1 1.7 2.4 1.7 3.9s-.6 2.8-1.7 3.9" />
+              <path d="M19 5.8c1.8 1.7 2.8 3.9 2.8 6.2s-1 4.5-2.8 6.2" />
+            </svg>
+          </span>
+          <strong>हॉर्न ओके प्लीज</strong>
+          <em>HORN OK PLEASEEEE</em>
+        </button>
       </section>
 
       <div className={isPlaying ? "center-bus moving" : "center-bus"} aria-hidden="true">
@@ -878,7 +1177,7 @@ export default function RadioSite() {
               type="button"
               key={item.id}
               className={index === playlistIndex ? "active" : ""}
-              onClick={() => selectTrack(index, 0)}
+              onClick={() => selectPlaylistCategory(index)}
               style={{ "--category-accent": item.accent } as React.CSSProperties}
             >
               <strong>{item.name}</strong>
@@ -894,7 +1193,7 @@ export default function RadioSite() {
               className={index === trackIndex ? "active" : ""}
               onClick={() => selectTrack(playlistIndex, index)}
             >
-              <span>{String(index + 1).padStart(2, "0")}</span>
+              <YouTubeThumbnail className="queue-cover" track={item} index={index} />
               <strong>{item.title}</strong>
               <em>{item.artist}</em>
             </button>
@@ -910,7 +1209,7 @@ export default function RadioSite() {
       <div className="youtube-frame" ref={youtubeContainerRef} />
 
       <section className={isPlayerExpanded ? "player-card expanded" : "player-card"} aria-label="Music controls">
-        <MiniBus isPlaying={isPlaying} />
+        <TrackCover isPlaying={isPlaying} track={track} />
         <button
           type="button"
           className="player-expand"
@@ -955,6 +1254,7 @@ export default function RadioSite() {
         <span><kbd>N</kbd><kbd>P</kbd> Track</span>
         <span><kbd>Q</kbd> Queue</span>
         <span><kbd>T</kbd> Theme</span>
+        <span><kbd>H</kbd> Horn</span>
       </div>
     </main>
   );
