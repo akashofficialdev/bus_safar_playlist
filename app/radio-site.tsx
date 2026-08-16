@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Track = {
   id: string;
@@ -27,7 +27,6 @@ type Theme = {
   image: string;
   videoWide?: string;
   videoTall?: string;
-  icon: string;
 };
 
 type YouTubePlayerState = {
@@ -109,7 +108,6 @@ const themes: Theme[] = [
     image: "/bg/uttarakhand-bus-generated.png",
     videoWide: "/videos/valley-vista-wide.mp4",
     videoTall: "/videos/valley-vista-tall.mp4",
-    icon: "▣",
   },
   {
     id: "windshield-ghats",
@@ -118,7 +116,6 @@ const themes: Theme[] = [
     image: "/bg/windshield-ghats.png",
     videoWide: "/videos/windshield-ghats.mp4",
     videoTall: "/videos/windshield-ghats.mp4",
-    icon: "◫",
   },
   {
     id: "mountain-road-reel",
@@ -127,7 +124,6 @@ const themes: Theme[] = [
     image: "/bg/uttarakhand-bus-generated.png",
     videoWide: "/videos/mountain-road-reel.mp4",
     videoTall: "/videos/mountain-road-reel.mp4",
-    icon: "◨",
   },
 ];
 
@@ -705,11 +701,6 @@ export default function RadioSite() {
     "--scene-image": `url("${theme.image}")`,
   } as React.CSSProperties;
 
-  const listenerCount = useMemo(
-    () => (931 + playlistIndex * 137 + trackIndex * 19).toLocaleString("en-IN"),
-    [playlistIndex, trackIndex],
-  );
-
   return (
     <main
       className={`radio-shell theme-${theme.id}${isPlayerExpanded ? " player-expanded" : ""}`}
@@ -759,7 +750,7 @@ export default function RadioSite() {
       <div className="grain" />
 
       <div className="brand-corner">
-        <span className="brand-icon">{theme.icon}</span>
+        <span className="brand-icon" aria-hidden="true" />
         <div>
           <strong>बस सफर</strong>
           <em>{theme.routeLabel}</em>
@@ -804,7 +795,6 @@ export default function RadioSite() {
         >
           {isLibraryOpen ? "Close queue" : "Queue"}
         </button>
-        <span className="listeners">{listenerCount} aboard</span>
         <button
           type="button"
           className="driver-toggle"
@@ -847,7 +837,10 @@ export default function RadioSite() {
 
       <section className="route-title" aria-label="Route">
         <span>{playlist.tracks.length} tracks · non-stop</span>
-        <p>देहरादून से मसूरी</p>
+        <p>
+          <span className="route-title-depth" aria-hidden="true">देहरादून से मसूरी</span>
+          <span className="route-title-main">देहरादून से मसूरी</span>
+        </p>
         <em>{playlist.shortName}</em>
       </section>
 

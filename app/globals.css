@@ -305,8 +305,7 @@ button {
 }
 
 .theme-windshield-ghats .route-title p {
-  font-size: clamp(2.4rem, 6vw, 5.4rem);
-  text-shadow: 0 4px 22px rgba(28, 20, 9, 0.62);
+  font-size: 5.2rem;
 }
 
 .theme-windshield-ghats .player-card {
@@ -439,7 +438,7 @@ button {
 }
 
 .theme-window-seat-ridge .route-title p {
-  font-size: clamp(2.35rem, 5.8vw, 5.6rem);
+  font-size: 5.2rem;
 }
 
 .theme-window-seat-ridge .player-card {
@@ -459,15 +458,16 @@ button {
 }
 
 .brand-icon {
-  display: grid;
   width: 46px;
   height: 46px;
-  place-items: center;
   border-radius: 999px;
-  background: #ffc933;
-  color: #1a1307;
-  font-size: 1.3rem;
-  font-weight: 950;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.3), transparent 42%),
+    url("/favicon.svg") center / 100% 100% no-repeat;
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
 }
 
 .brand-corner strong {
@@ -556,19 +556,6 @@ button {
   font-size: clamp(1.35rem, 2.4vw, 1.95rem);
   font-weight: 820;
   font-variant-numeric: tabular-nums;
-}
-
-.listeners {
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 999px;
-  padding: 0.4rem 0.72rem;
-  background: rgba(0, 0, 0, 0.28);
-  color: rgba(255, 255, 255, 0.74);
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  backdrop-filter: blur(18px);
 }
 
 .library-toggle {
@@ -735,20 +722,75 @@ button {
   z-index: 20;
   width: min(86vw, 48rem);
   text-align: center;
-  text-shadow: 0 4px 24px rgba(0, 47, 78, 0.52);
   transform: translateX(-50%);
+  animation: route-title-rise 760ms cubic-bezier(0.2, 0.85, 0.28, 1) both;
 }
 
 .route-title p {
+  position: relative;
   margin: 0.08em 0 0;
-  color: #ffffff;
-  font-size: clamp(2.4rem, 6vw, 5.4rem);
+  color: transparent;
+  font-family: "Kohinoor Devanagari", "Noto Sans Devanagari", "Nirmala UI", "Mangal", system-ui, sans-serif;
+  font-size: 5rem;
   font-weight: 950;
-  line-height: 0.9;
+  line-height: 0.86;
   letter-spacing: 0;
+  isolation: isolate;
+  filter:
+    drop-shadow(0 8px 10px rgba(5, 18, 28, 0.34))
+    drop-shadow(0 24px 46px rgba(0, 0, 0, 0.36));
 }
 
-.route-title span,
+.route-title p::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -0.22rem;
+  width: min(72%, 30rem);
+  height: 0.16rem;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 231, 160, 0.9), rgba(255, 255, 255, 0.98), rgba(255, 190, 96, 0.9), transparent);
+  box-shadow: 0 0 22px rgba(255, 184, 84, 0.34);
+  transform: translateX(-50%) scaleX(0.92);
+  transform-origin: center;
+  animation: route-underline-pulse 4.8s ease-in-out infinite;
+}
+
+.route-title-depth,
+.route-title-main {
+  display: block;
+}
+
+.route-title-depth {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  color: rgba(18, 15, 11, 0.38);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.2),
+    0 4px 0 rgba(38, 32, 24, 0.55),
+    0 9px 18px rgba(0, 0, 0, 0.5);
+  transform: translate3d(0.055em, 0.075em, 0);
+}
+
+.route-title-main {
+  position: relative;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, #fff9de 0%, #ffffff 42%, #ffd772 52%, #f7a733 68%, #ffffff 100%),
+    linear-gradient(110deg, transparent 0 30%, rgba(255, 255, 255, 0.95) 45%, transparent 58% 100%);
+  background-clip: text;
+  background-size: 100% 100%, 230% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.28),
+    0 12px 28px rgba(0, 0, 0, 0.28);
+  animation: route-title-sheen 5.6s ease-in-out 950ms infinite;
+}
+
+.route-title > span,
 .route-title em {
   display: block;
   color: rgba(255, 246, 223, 0.62);
@@ -757,11 +799,13 @@ button {
   font-weight: 860;
   letter-spacing: 0.42em;
   text-transform: uppercase;
+  text-shadow: 0 8px 22px rgba(0, 0, 0, 0.34);
+  animation: route-kicker-glow 5s ease-in-out infinite;
 }
 
 .route-title em {
-  margin-top: 0.5rem;
-  color: rgba(255, 255, 255, 0.55);
+  margin-top: 0.72rem;
+  color: rgba(255, 242, 202, 0.7);
   letter-spacing: 0.32em;
 }
 
@@ -1372,6 +1416,57 @@ button {
   }
 }
 
+@keyframes route-title-rise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.9rem) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes route-title-sheen {
+  0%,
+  36% {
+    background-position: 0 0, 135% 0;
+  }
+
+  58% {
+    background-position: 0 0, -35% 0;
+  }
+
+  100% {
+    background-position: 0 0, -35% 0;
+  }
+}
+
+@keyframes route-underline-pulse {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: translateX(-50%) scaleX(0.72);
+  }
+
+  50% {
+    opacity: 0.92;
+    transform: translateX(-50%) scaleX(1);
+  }
+}
+
+@keyframes route-kicker-glow {
+  0%,
+  100% {
+    opacity: 0.62;
+  }
+
+  50% {
+    opacity: 0.88;
+  }
+}
+
 @keyframes windshield-camera {
   0% {
     transform: scale(1.015) translate(0, 0);
@@ -1522,6 +1617,12 @@ button {
     top: max(4.6rem, calc(env(safe-area-inset-top) + 4rem));
   }
 
+  .theme-windshield-ghats .route-title p,
+  .theme-window-seat-ridge .route-title p,
+  .route-title p {
+    font-size: 4rem;
+  }
+
   .library-panel {
     left: max(1rem, env(safe-area-inset-left));
     right: max(1rem, env(safe-area-inset-right));
@@ -1658,10 +1759,6 @@ button {
     display: none;
   }
 
-  .listeners {
-    display: none;
-  }
-
   .library-toggle {
     flex: 0 0 auto;
     min-height: 40px;
@@ -1750,11 +1847,19 @@ button {
 
   .route-title p {
     margin-top: 0.12rem;
-    font-size: clamp(1.95rem, 11vw, 2.85rem);
+    font-size: 2.55rem;
     line-height: 0.94;
+    filter:
+      drop-shadow(0 5px 8px rgba(5, 18, 28, 0.32))
+      drop-shadow(0 16px 28px rgba(0, 0, 0, 0.34));
   }
 
-  .route-title span {
+  .route-title p::after {
+    bottom: -0.15rem;
+    height: 0.11rem;
+  }
+
+  .route-title > span {
     font-size: 0.64rem;
     letter-spacing: 0.32em;
   }
@@ -1967,5 +2072,15 @@ button {
 
   .shortcut-row {
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-title,
+  .route-title-main,
+  .route-title p::after,
+  .route-title > span,
+  .route-title em {
+    animation: none;
   }
 }
