@@ -36,6 +36,17 @@ type YouTubePlayerState = {
   data: number;
 };
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+};
+
+type NavigatorWithStandalone = Navigator & {
+  standalone?: boolean;
+};
+
+type InstallGuideKind = "ios" | "android-insecure" | "default";
+
 type YouTubePlayer = {
   loadVideoById: (videoId: string) => void;
   cueVideoById: (videoId: string) => void;
@@ -43,6 +54,7 @@ type YouTubePlayer = {
   cuePlaylist: (playlist: YouTubePlaylistRequest) => void;
   playVideo: () => void;
   pauseVideo: () => void;
+  getPlaylistIndex: () => number;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
   getCurrentTime: () => number;
   getDuration: () => number;
@@ -471,12 +483,161 @@ function TrackCover({ isPlaying, track }: { isPlaying: boolean; track: Track }) 
   );
 }
 
+function InstallHomeButton() {
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installMode, setInstallMode] = useState<"hidden" | "prompt" | "guide">("hidden");
+  const [guideKind, setGuideKind] = useState<InstallGuideKind>("default");
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isNudgeOpen, setIsNudgeOpen] = useState(false);
+
+  useEffect(() => {
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches || Boolean((window.navigator as NavigatorWithStandalone).standalone);
+    const isIos =
+      /iPad|iPhone|iPod/.test(window.navigator.userAgent) ||
+      (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/i.test(window.navigator.userAgent);
+    const isMobile = isIos || isAndroid || /webOS|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent);
+
+    if (isStandalone) {
+      setInstallMode("hidden");
+      return;
+    }
+
+    if (window.localStorage.getItem("bus-safar-install-nudge-dismissed") === "true") {
+      return;
+    }
+
+    if (isMobile) {
+      setGuideKind(isIos ? "ios" : isAndroid && !window.isSecureContext ? "android-insecure" : "default");
+      setInstallMode("guide");
+    }
+
+    const onBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+      setInstallMode("prompt");
+    };
+
+    const onAppInstalled = () => {
+      setInstallPrompt(null);
+      setInstallMode("hidden");
+      setIsGuideOpen(false);
+      setIsNudgeOpen(false);
+    };
+
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    window.addEventListener("appinstalled", onAppInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", onAppInstalled);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (installMode === "hidden" || isGuideOpen) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      if (window.localStorage.getItem("bus-safar-install-nudge-dismissed") !== "true") {
+        setIsNudgeOpen(true);
+      }
+    }, 10000);
+
+    return () => window.clearTimeout(timer);
+  }, [installMode, isGuideOpen]);
+
+  if (installMode === "hidden") {
+    return null;
+  }
+
+  const installApp = async () => {
+    setIsNudgeOpen(false);
+
+    if (installMode === "guide" || !installPrompt) {
+      setIsGuideOpen(true);
+      return;
+    }
+
+    await installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
+    setInstallMode("hidden");
+  };
+
+  const dismissNudge = () => {
+    window.localStorage.setItem("bus-safar-install-nudge-dismissed", "true");
+    setIsNudgeOpen(false);
+  };
+
+  return (
+    <>
+      <button type="button" className="install-toggle" onClick={installApp}>
+        <span aria-hidden="true">+</span>
+        Add to Home Screen
+      </button>
+      {isNudgeOpen ? (
+        <div className="install-nudge" role="dialog" aria-modal="false" aria-labelledby="install-nudge-title">
+          <button type="button" className="install-nudge-close" onClick={dismissNudge} aria-label="Close home screen prompt">
+            ×
+          </button>
+          <span className="install-nudge-icon" aria-hidden="true">+</span>
+          <div>
+            <strong id="install-nudge-title">Add बस सफर to your Home Screen</strong>
+            <p>Open the bus like an app next time.</p>
+          </div>
+          <button type="button" className="install-nudge-action" onClick={installApp}>
+            Add to Home Screen
+          </button>
+        </div>
+      ) : null}
+      {isGuideOpen ? (
+        <div className="install-guide" role="dialog" aria-modal="true" aria-labelledby="install-guide-title">
+          <div className="install-guide-panel">
+            <button type="button" className="install-guide-close" onClick={() => setIsGuideOpen(false)} aria-label="Close install guide">
+              ×
+            </button>
+            <span className="install-guide-icon" aria-hidden="true">+</span>
+            <strong id="install-guide-title">Add बस सफर</strong>
+            {guideKind === "android-insecure" ? (
+              <>
+                <p className="install-guide-note">Android app install needs the live HTTPS site.</p>
+                <ol>
+                  <li>Deploy the latest version to Vercel.</li>
+                  <li>Open the HTTPS Vercel URL in Chrome.</li>
+                  <li>Tap Add to Home Screen again.</li>
+                </ol>
+              </>
+            ) : guideKind === "ios" ? (
+              <ol>
+                <li>Tap Share in Safari.</li>
+                <li>Choose Add to Home Screen.</li>
+                <li>Tap Add.</li>
+              </ol>
+            ) : (
+              <ol>
+                <li>Open the browser menu.</li>
+                <li>Choose Install app or Add to Home Screen.</li>
+                <li>Tap Install or Add.</li>
+              </ol>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 export default function RadioSite() {
   const playerRef = useRef<YouTubePlayer | null>(null);
   const youtubeContainerRef = useRef<HTMLDivElement | null>(null);
   const requestedAutoplayRef = useRef(false);
   const endedRef = useRef(false);
   const nextTrackRef = useRef<() => void>(() => {});
+  const syncYouTubeTrackRef = useRef<() => void>(() => {});
+  const skipNextPlaylistLoadRef = useRef(false);
   const fallbackDurationRef = useRef(0);
   const hornAudioRef = useRef<HTMLAudioElement[]>([]);
   const lastHornAtRef = useRef(0);
@@ -748,6 +909,41 @@ export default function RadioSite() {
   });
 
   useEffect(() => {
+    syncYouTubeTrackRef.current = () => {
+      if (!playlist.youtubePlaylistId) {
+        return;
+      }
+
+      const nextTrackIndex = callYouTubePlayer(playerRef.current, "getPlaylistIndex");
+
+      if (typeof nextTrackIndex !== "number" || !Number.isFinite(nextTrackIndex)) {
+        return;
+      }
+
+      const normalizedTrackIndex =
+        ((Math.trunc(nextTrackIndex) % playlist.tracks.length) + playlist.tracks.length) % playlist.tracks.length;
+
+      if (normalizedTrackIndex === trackIndex) {
+        return;
+      }
+
+      skipNextPlaylistLoadRef.current = true;
+      endedRef.current = false;
+      setTrackIndex(normalizedTrackIndex);
+
+      const nextCurrentTime = callYouTubePlayer(playerRef.current, "getCurrentTime");
+      const nextDuration = callYouTubePlayer(playerRef.current, "getDuration");
+
+      setCurrentTime(typeof nextCurrentTime === "number" && Number.isFinite(nextCurrentTime) ? nextCurrentTime : 0);
+      setDuration(
+        typeof nextDuration === "number" && Number.isFinite(nextDuration) && nextDuration > 0
+          ? nextDuration
+          : playlist.tracks[normalizedTrackIndex].duration,
+      );
+    };
+  });
+
+  useEffect(() => {
     const browserWindow = window as YouTubeWindow;
     const isSocialWebView = /Instagram|FBAN|FBAV/i.test(window.navigator.userAgent);
     const existingReadyCallback = browserWindow.onYouTubeIframeAPIReady;
@@ -796,6 +992,7 @@ export default function RadioSite() {
             }
 
             if (event.data === state.PLAYING) {
+              syncYouTubeTrackRef.current();
               setIsPlaying(true);
               setPlayerNotice("");
               setDuration(callYouTubePlayer(playerRef.current, "getDuration") || fallbackDurationRef.current);
@@ -859,6 +1056,11 @@ export default function RadioSite() {
     endedRef.current = false;
 
     if (youtubePlaylistRequest) {
+      if (skipNextPlaylistLoadRef.current) {
+        skipNextPlaylistLoadRef.current = false;
+        return;
+      }
+
       if (requestedAutoplayRef.current) {
         callYouTubePlayer(playerRef.current, "loadPlaylist", youtubePlaylistRequest);
       } else {
@@ -890,6 +1092,8 @@ export default function RadioSite() {
       if (!player) {
         return;
       }
+
+      syncYouTubeTrackRef.current();
 
       const nextCurrentTime = callYouTubePlayer(player, "getCurrentTime");
       const nextDuration = callYouTubePlayer(player, "getDuration");
@@ -1060,6 +1264,7 @@ export default function RadioSite() {
         >
           {isLibraryOpen ? "Close queue" : "Queue"}
         </button>
+        <InstallHomeButton />
         <button
           type="button"
           className="driver-toggle"
